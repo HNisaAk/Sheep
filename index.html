@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Bulutlar ve Koyunlar</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background: #1d2d18;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      max-width: 960px;
+      aspect-ratio: 900 / 540;
+      max-height: 100vh;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+      background: #7ec8ff;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Sol Üst Duraklat Butonu */
+    .pause-btn {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 4px solid rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      font-size: 1.2rem;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      transition: transform 0.1s;
+    }
+    .pause-btn:active { transform: scale(0.92); }
+
+    /* Sağ Üst Pembe Yıldız Şeridi */
+    .star-bar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: linear-gradient(180deg, #ff70a6 0%, #e84383 100%);
+      border-bottom: 3px solid #ffffff;
+      border-left: 3px solid #ffffff;
+      border-bottom-left-radius: 16px;
+      padding: 6px 18px 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+      z-index: 10;
+    }
+
+    .star-icon {
+      font-size: 1.9rem;
+      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35));
+      line-height: 1;
+    }
+
+    .star-count {
+      color: #ffffff;
+      font-size: 1.65rem;
+      font-weight: 900;
+      text-shadow: 2px 2px 0 #8a1c48, -1px -1px 0 #8a1c48;
+      min-width: 36px;
+      text-align: right;
+    }
+
+    /* Alt Bilgi */
+    .toast {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(45, 32, 18, 0.9);
+      color: #fff8dc;
+      border: 2px solid #f7e6b5;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 20;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    /* Görev & Mağaza Modalı */
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 30;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal-box {
+      width: 100%;
+      max-width: 420px;
+      background: #fff9e6;
+      border: 4px solid #5c3a1d;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+    }
+
+    .modal-header {
+      background: linear-gradient(180deg, #ff70a6, #e84383);
+      color: #fff;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 900;
+      font-size: 1.05rem;
+      border-bottom: 3px solid #5c3a1d;
+    }
+
+    .close-btn {
+      background: #fff;
+      color: #e84383;
+      border: 2px solid #5c3a1d;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .tabs {
+      display: flex;
+      background: #f2e2ba;
+      border-bottom: 2px solid #d4bc85;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      background: transparent;
+      font-weight: 800;
+      color: #6b4724;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .tab-btn.active {
+      background: #fff9e6;
+      color: #d6336c;
+      border-bottom: 3px solid #e84383;
+    }
+
+    .modal-body {
+      padding: 12px;
+      max-height: 55vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .row {
+      background: #f7ebd0;
+      border: 2px solid #d4bc85;
+      border-radius: 12px;
+      padding: 9px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .row h4 { font-size: 0.9rem; color: #3d2612; }
+    .row p { font-size: 0.76rem; color: #755331; margin-top: 2px; }
+
+    .act-btn {
+      background: linear-gradient(180deg, #69db7c, #2f9e44);
+      color: #fff;
+      border: 2px solid #1f662d;
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-weight: 800;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .act-btn:disabled { background: #adb5bd; border-color: #868e96; cursor: not-allowed; }
+    .act-btn.claim { background: linear-gradient(180deg, #ffd43b, #f08c00); border-color: #9c4a00; color: #4a2200; }
+
+    @media (max-width: 600px) {
+      .pause-btn { width: 38px; height: 38px; font-size: 0.95rem; }
+      .star-bar { padding: 4px 12px 4px 10px; }
+      .star-icon { font-size: 1.4rem; }
+      .star-count { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <canvas id="gameCanvas"></canvas>
+
+    <button class="pause-btn" id="pauseBtn" title="Duraklat">❚❚</button>
+
+    <div class="star-bar">
+      <span class="star-icon">⭐</span>
+      <span class="star-count" id="starCountEl">0</span>
+    </div>
+
+    <div class="toast" id="toastEl">Bulutları birleştirip yağmur yağdır, koyunları sev!</div>
+
+    <div class="modal-backdrop" id="modalBackdrop">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span>📋 Çayır Panosu</span>
+          <button class="close-btn" id="closeModalBtn">✕</button>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" id="tabTasks">❗ Görevler</button>
+          <button class="tab-btn" id="tabShop">🛒 Mağaza</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const W = 900, H = 540;
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    /* OYUN DURUMU */
+    let stars = 10;
+    let paused = false;
+    let activeTab = "tasks";
+    let toastTimer = null;
+
+    const tasks = [
+      { id: "pet",    title: "Bir koyunu sev",         desc: "Koyunun üzerine tıkla",        goal: 1, prog: 0, reward: 15, claimed: false },
+      { id: "merge",  title: "Bulutları birleştir",    desc: "2 beyaz bulutu üst üste sürükle", goal: 1, prog: 0, reward: 20, claimed: false },
+      { id: "rain",   title: "Yağmur yağdır",          desc: "Gri buluta tıklayıp yağmur yağdır", goal: 1, prog: 0, reward: 20, claimed: false },
+      { id: "lamb",   title: "1 Kuzu doğur",           desc: "2 mutlu koyunu yan yana getir", goal: 1, prog: 0, reward: 35, claimed: false }
+    ];
+
+    const shopItems = [
+      { id: "sheep",      name: "Yeni Koyun 🐑",    desc: "Sürüye yeni bir koyun ekler",      cost: 25 },
+      { id: "ball",       name: "Oyun Topu ⚽",     desc: "Koyunlar oynayıp yıldız verir",    cost: 20 },
+      { id: "trampoline", name: "Trambolin 🎪",     desc: "Üstüne koyun bırak, zıplasın!",    cost: 35 }
+    ];
+
+    /* VARLIKLAR */
+    const clouds = [
+      { x: 160, y: 120, size: 1, vx: 10, raining: 0 },
+      { x: 460, y: 95,  size: 1, vx: 8,  raining: 0 },
+      { x: 740, y: 135, size: 1, vx: 12, raining: 0 }
+    ];
+
+    const sheepList = [
+      createSheep(350, 380, false),
+      createSheep(470, 395, false),
+      createSheep(150, 455, false)
+    ];
+
+    const grassTufts = [
+      { x: 265, y: 375, amount: 3 },
+      { x: 685, y: 405, amount: 3 },
+      { x: 320, y: 485, amount: 3 },
+      { x: 645, y: 485, amount: 3 }
+    ];
+
+    const puddles = [];
+    const raindrops = [];
+    const particles = [];
+    const toys = []; // { type: 'ball'|'trampoline', x, y, vx, vy }
+
+    const SIGNPOST = { x: 430, y: 470, w: 58, h: 64 };
+
+    function createSheep(x, y, isLamb = false) {
+      return {
+        x, y,
+        vx: 0, vy: 0,
+        tx: x, ty: y,
+        dir: Math.random() > 0.5 ? 1 : -1,
+        isLamb,
+        hunger: 85,   // 0-100
+        thirst: 85,   // 0-100
+        happy: 75,    // 0-100
+        wait: Math.random() * 2,
+        breedCooldown: 12,
+        jumpY: 0,
+        jumpVy: 0,
+        blink: 0
+      };
+    }
+
+    function addStars(n, x, y) {
+      stars += n;
+      document.getElementById("starCountEl").textContent = stars;
+      particles.push({ x, y, vy: -42, text: `+${n} ⭐`, life: 1.2, maxLife: 1.2, color: "#ffe066" });
+    }
+
+    function progressTask(id, amt = 1) {
+      const t = tasks.find(x => x.id === id);
+      if (t && t.prog < t.goal) {
+        t.prog = Math.min(t.goal, t.prog + amt);
+        if (t.prog >= t.goal) showToast(`🎉 Görev tamamlandı: ${t.title}! Tabelaya tıkla!`);
+      }
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById("toastEl");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+    }
+
+    /* MODAL */
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const modalBody = document.getElementById("modalBody");
+    const tabTasks = document.getElementById("tabTasks");
+    const tabShop = document.getElementById("tabShop");
+
+    function openModal(tab = "tasks") {
+      activeTab = tab;
+      modalBackdrop.classList.add("open");
+      renderModal();
+    }
+    function closeModal() { modalBackdrop.classList.remove("open"); }
+
+    function renderModal() {
+      tabTasks.classList.toggle("active", activeTab === "tasks");
+      tabShop.classList.toggle("active", activeTab === "shop");
+      modalBody.innerHTML = "";
+
+      if (activeTab === "tasks") {
+        tasks.forEach(t => {
+          const done = t.prog >= t.goal;
+          const row = document.createElement("div");
+          row.className = "row";
+          row.innerHTML = `
+            <div>
+              <h4>${t.title} (${t.prog}/${t.goal})</h4>
+              <p>${t.desc}</p>
+            </div>
+            <button class="act-btn ${done && !t.claimed ? "claim" : ""}" ${done && !t.claimed ? "" : "disabled"}>
+              ${t.claimed ? "Alındı ✓" : (done ? `Al +${t.reward}⭐` : `${t.reward}⭐`)}
+            </button>`;
+          row.querySelector("button").onclick = () => {
+            if (done && !t.claimed) {
+              t.claimed = true;
+              addStars(t.reward, SIGNPOST.x, SIGNPOST.y - 40);
+              renderModal();
+            }
+          };
+          modalBody.appendChild(row);
+        });
+      } else {
+        shopItems.forEach(item => {
+          const row = document.createElement("div");
+          row.className = "row";
+          row.innerHTML = `
+            <div>
+              <h4>${item.name}</h4>
+              <p>${item.desc}</p>
+            </div>
+            <button class="act-btn" ${stars >= item.cost ? "" : "disabled"}>${item.cost} ⭐</button>`;
+          row.querySelector("button").onclick = () => {
+            if (stars < item.cost) return;
+            stars -= item.cost;
+            document.getElementById("starCountEl").textContent = stars;
+            if (item.id === "sheep") {
+              sheepList.push(createSheep(260 + Math.random() * 380, 390 + Math.random() * 80, false));
+              showToast("🐑 Yeni koyun çayıra katıldı!");
+            } else if (item.id === "ball") {
+              toys.push({ type: "ball", x: 450, y: 410, vx: 60, vy: 0 });
+              showToast("⚽ Oyun topu çayıra bırakıldı!");
+            } else if (item.id === "trampoline") {
+              toys.push({ type: "trampoline", x: 300 + Math.random() * 300, y: 420 });
+              showToast("🎪 Trambolin kuruldu! Üstüne koyun bırak!");
+            }
+            closeModal();
+          };
+          modalBody.appendChild(row);
+        });
+      }
+    }
+
+    tabTasks.onclick = () => { activeTab = "tasks"; renderModal(); };
+    tabShop.onclick = () => { activeTab = "shop"; renderModal(); };
+    document.getElementById("closeModalBtn").onclick = closeModal;
+    modalBackdrop.onclick = (e) => { if (e.target === modalBackdrop) closeModal(); };
+    document.getElementById("pauseBtn").onclick = () => {
+      paused = !paused;
+      document.getElementById("pauseBtn").textContent = paused ? "▶" : "❚❚";
+      showToast(paused ? "Oyun duraklatıldı" : "Oyun devam ediyor");
+    };
+
+    /* ETKİLEŞİM (SÜRÜKLE & TIKLA) */
+    let dragged = null; // { type: 'cloud'|'sheep', obj, ox, oy, startX, startY, moved }
+
+    function getPos(e) {
+      const r = canvas.getBoundingClientRect();
+      return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H };
+    }
+
+    canvas.addEventListener("pointerdown", (e) => {
+      if (paused) return;
+      const { x, y } = getPos(e);
+
+      // 1. Görev Tabelası
+      if (Math.hypot(x - SIGNPOST.x, y - SIGNPOST.y) < 38) {
+        openModal("tasks");
+        return;
+      }
+
+      // 2. Bulut Tutma
+      for (let i = clouds.length - 1; i >= 0; i--) {
+        const c = clouds[i];
+        const rad = 32 + c.size * 14;
+        if (Math.hypot(x - c.x, y - c.y) < rad) {
+          dragged = { type: "cloud", obj: c, ox: c.x - x, oy: c.y - y, startX: x, startY: y, moved: false };
+          return;
+        }
+      }
+
+      // 3. Koyun Tutma
+      for (let i = sheepList.length - 1; i >= 0; i--) {
+        const s = sheepList[i];
+        const rad = s.isLamb ? 28 : 42;
+        if (Math.hypot(x - s.x, y - (s.y - 12)) < rad) {
+          dragged = { type: "sheep", obj: s, ox: s.x - x, oy: s.y - y, startX: x, startY: y, moved: false };
+          return;
+        }
+      }
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      if (!dragged || paused) return;
+      const { x, y } = getPos(e);
+      if (Math.hypot(x - dragged.startX, y - dragged.startY) > 6) dragged.moved = true;
+
+      if (dragged.type === "cloud") {
+        dragged.obj.x = Math.max(40, Math.min(W - 40, x + dragged.ox));
+        dragged.obj.y = Math.max(45, Math.min(240, y + dragged.oy));
+      } else if (dragged.type === "sheep") {
+        dragged.obj.x = Math.max(40, Math.min(W - 40, x + dragged.ox));
+        dragged.obj.y = Math.max(120, Math.min(H - 25, y + dragged.oy));
+      }
+    });
+
+    window.addEventListener("pointerup", () => {
+      if (!dragged) return;
+
+      if (dragged.type === "cloud") {
+        const c = dragged.obj;
+        // Başka bulutla birleştirme kontrolü
+        let merged = false;
+        for (let i = clouds.length - 1; i >= 0; i--) {
+          const other = clouds[i];
+          if (other !== c && Math.hypot(c.x - other.x, c.y - other.y) < 75) {
+            c.size = Math.min(3, c.size + other.size);
+            clouds.splice(i, 1);
+            merged = true;
+            progressTask("merge");
+            particles.push({ x: c.x, y: c.y, vy: -25, text: c.size >= 2 ? "🌧️ Yağmur Bulutu!" : "☁️ Büyüdü!", life: 1.1, maxLife: 1.1, color: "#fff" });
+            break;
+          }
+        }
+        // Tıklandıysa ve gri bulutsa yağmur yağdır
+        if (!merged && !dragged.moved && c.size >= 2 && c.raining <= 0) {
+          c.raining = 3.5;
+          progressTask("rain");
+          showToast("🌧️ Yağmur yağıyor! Taze otlar ve su çıkıyor!");
+        }
+      }
+
+      if (dragged.type === "sheep") {
+        const s = dragged.obj;
+        // Çayır alanına indir
+        if (s.y < 345) s.y = 355;
+        s.tx = s.x; s.ty = s.y;
+
+        if (!dragged.moved) {
+          // Koyunu sev!
+          s.happy = Math.min(100, s.happy + 20);
+          s.jumpVy = -190;
+          addStars(2, s.x, s.y - 38);
+          particles.push({ x: s.x + 12, y: s.y - 45, vy: -35, text: "❤️", life: 1.0, maxLife: 1.0, color: "#ff6b6b" });
+          progressTask("pet");
+        } else {
+          // Trambolin üstüne bırakıldı mı?
+          toys.forEach(t => {
+            if (t.type === "trampoline" && Math.hypot(s.x - t.x, s.y - t.y) < 48) {
+              s.jumpVy = -320;
+              s.happy = 100;
+              addStars(4, s.x, s.y - 40);
+            }
+          });
+        }
+      }
+
+      dragged = null;
+    });
+
+    /* GÜNCELLEME DÖNGÜSÜ */
+    function update(dt) {
+      if (paused) return;
+
+      // Bulut üretimi (en az 3 bulut olsun)
+      if (clouds.length < 3 && Math.random() < 0.015) {
+        clouds.push({ x: -60, y: 75 + Math.random() * 90, size: 1, vx: 8 + Math.random() * 8, raining: 0 });
+      }
+
+      // Bulut hareketi & yağmur
+      for (let i = clouds.length - 1; i >= 0; i--) {
+        const c = clouds[i];
+        if (!dragged || dragged.obj !== c) {
+          c.x += c.vx * dt;
+          if (c.x > W + 90) c.x = -90;
+        }
+        if (c.raining > 0) {
+          c.raining -= dt;
+          if (Math.random() < 0.45) {
+            raindrops.push({ x: c.x + (Math.random() - 0.5) * 60, y: c.y + 18, vy: 270 });
+          }
+          if (c.raining <= 0) {
+            // Yağmur bitince altına ot ve su birikintisi çıkar
+            const gx = Math.max(70, Math.min(W - 70, c.x));
+            grassTufts.push({ x: gx + (Math.random() - 0.5) * 40, y: 375 + Math.random() * 110, amount: 3 });
+            if (puddles.length < 4) {
+              puddles.push({ x: gx, y: 395 + Math.random() * 90, amount: 3 });
+            }
+            c.size = 1; // Tekrar beyaz buluta dön
+          }
+        }
+      }
+
+      // Yağmur damlaları
+      for (let i = raindrops.length - 1; i >= 0; i--) {
+        raindrops[i].y += raindrops[i].vy * dt;
+        if (raindrops[i].y > 460) raindrops.splice(i, 1);
+      }
+
+      // Oyuncak Top fiziği
+      toys.forEach(t => {
+        if (t.type === "ball") {
+          t.x += t.vx * dt;
+          t.vx *= 0.985;
+          if (t.x < 40 || t.x > W - 40) t.vx *= -1;
+        }
+      });
+
+      // Koyunlar
+      sheepList.forEach(s => {
+        s.hunger = Math.max(0, s.hunger - dt * 1.1);
+        s.thirst = Math.max(0, s.thirst - dt * 0.9);
+        s.breedCooldown = Math.max(0, s.breedCooldown - dt);
+        s.blink = (s.blink + dt) % 4;
+
+        // Zıplama fiziği
+        if (s.jumpY < 0 || s.jumpVy !== 0) {
+          s.jumpY += s.jumpVy * dt;
+          s.jumpVy += 680 * dt;
+          if (s.jumpY >= 0) { s.jumpY = 0; s.jumpVy = 0; }
+        }
+
+        if (dragged && dragged.obj === s) return;
+
+        // Topa vurma
+        toys.forEach(t => {
+          if (t.type === "ball" && Math.hypot(s.x - t.x, s.y - t.y) < 38 && Math.abs(t.vx) < 35) {
+            t.vx = (t.x >= s.x ? 1 : -1) * 160;
+            s.happy = Math.min(100, s.happy + 10);
+            addStars(2, t.x, t.y - 20);
+          }
+        });
+
+        // Acıktıysa ot ye
+        if (s.hunger < 65) {
+          const g = grassTufts.find(gr => gr.amount > 0 && Math.hypot(s.x - gr.x, s.y - gr.y) < 42);
+          if (g) {
+            g.amount -= 1;
+            s.hunger = Math.min(100, s.hunger + 35);
+            s.happy = Math.min(100, s.happy + 10);
+            addStars(2, s.x, s.y - 32);
+            if (g.amount <= 0) grassTufts.splice(grassTufts.indexOf(g), 1);
+          }
+        }
+
+        // Susadıysa su iç
+        if (s.thirst < 65) {
+          const p = puddles.find(pu => pu.amount > 0 && Math.hypot(s.x - pu.x, s.y - pu.y) < 45);
+          if (p) {
+            p.amount -= 1;
+            s.thirst = Math.min(100, s.thirst + 40);
+            s.happy = Math.min(100, s.happy + 10);
+            addStars(2, s.x, s.y - 32);
+            if (p.amount <= 0) puddles.splice(puddles.indexOf(p), 1);
+          }
+        }
+
+        // Gezinme
+        if (s.wait > 0) {
+          s.wait -= dt;
+        } else {
+          const dx = s.tx - s.x, dy = s.ty - s.y, d = Math.hypot(dx, dy);
+          if (d < 5) {
+            s.wait = 1.5 + Math.random() * 2.5;
+            s.tx = 75 + Math.random() * (W - 150);
+            s.ty = 355 + Math.random() * 145;
+          } else {
+            const spd = s.isLamb ? 42 : 32;
+            s.x += (dx / d) * spd * dt;
+            s.y += (dy / d) * spd * dt;
+            s.dir = dx >= 0 ? 1 : -1;
+          }
+        }
+      });
+
+      // Kuzu doğurma (2 mutlu yetişkin koyun yan yana gelirse)
+      if (sheepList.length < 10) {
+        for (let i = 0; i < sheepList.length; i++) {
+          for (let j = i + 1; j < sheepList.length; j++) {
+            const a = sheepList[i], b = sheepList[j];
+            if (!a.isLamb && !b.isLamb && a.happy > 70 && b.happy > 70 && a.breedCooldown <= 0 && b.breedCooldown <= 0) {
+              if (Math.hypot(a.x - b.x, a.y - b.y) < 62) {
+                a.breedCooldown = 35; b.breedCooldown = 35;
+                const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + 10;
+                sheepList.push(createSheep(mx, my, true));
+                particles.push({ x: mx, y: my - 35, vy: -30, text: "💕 Yeni Kuzu!", life: 1.5, maxLife: 1.5, color: "#ff70a6" });
+                progressTask("lamb");
+                addStars(5, mx, my - 50);
+              }
+            }
+          }
+        }
+      }
+
+      // Parçacıklar
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].y += particles[i].vy * dt;
+        particles[i].life -= dt;
+        if (particles[i].life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    /* KAĞIT KESME TARZI (PAPER-CUTOUT) ÇİZİMLER */
+    function drawCutoutHill(points, fill) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i += 2) {
+        ctx.quadraticCurveTo(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1]);
+      }
+      ctx.lineTo(W + 20, H); ctx.lineTo(-20, H); ctx.closePath();
+      // Krem rengi kağıt kenarı
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#f4ecc4"; ctx.lineWidth = 11; ctx.stroke();
+      ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = fill; ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBackground() {
+      // Gökyüzü
+      const sky = ctx.createLinearGradient(0, 0, 0, 320);
+      sky.addColorStop(0, "#7ab8ff"); sky.addColorStop(1, "#c8e6ff");
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+      // Uzak Tepeler (Kağıt kesme tarzı)
+      drawCutoutHill([[-20, 290], [160, 215], [340, 285], [520, 225], [700, 275], [820, 230], [920, 290]], "#b7e467");
+
+      // Uzak Kale (Sol tepe)
+      ctx.save();
+      ctx.translate(250, 252);
+      ctx.fillStyle = "#f4ecc4"; ctx.fillRect(-15, -26, 30, 28);
+      ctx.fillStyle = "#8d99ae"; ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 2;
+      ctx.fillRect(-11, -22, 22, 22); ctx.strokeRect(-11, -22, 22, 22);
+      ctx.fillRect(-14, -27, 7, 7); ctx.fillRect(-3, -27, 7, 7); ctx.fillRect(7, -27, 7, 7);
+      ctx.restore();
+
+      // Orta Tepeler
+      drawCutoutHill([[-20, 320], [120, 275], [260, 325], [460, 265], [660, 325], [800, 275], [920, 325]], "#95d63c");
+
+      // Ön Çayır
+      const meadow = ctx.createLinearGradient(0, 330, 0, H);
+      meadow.addColorStop(0, "#8ce02c"); meadow.addColorStop(1, "#5fb317");
+      ctx.fillStyle = meadow; ctx.fillRect(0, 330, W, H - 330);
+      ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(0, 330); ctx.lineTo(W, 330); ctx.stroke();
+
+      // Dekoratif Kayalar (Sağ orta)
+      ctx.save();
+      ctx.translate(585, 345);
+      [[0, 0, 26, 18], [18, 12, 22, 16], [-16, 15, 20, 14]].forEach(([rx, ry, rw, rh]) => {
+        ctx.beginPath(); ctx.ellipse(rx, ry, rw, rh, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = "#f4ecc4"; ctx.lineWidth = 7; ctx.stroke();
+        ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.fillStyle = "#adb5bd"; ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawCloud(c) {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      const s = 0.78 + c.size * 0.22;
+      ctx.scale(s, s);
+      const fill = c.size >= 2 ? (c.raining > 0 ? "#868e96" : "#adb5bd") : "#ffffff";
+
+      ctx.beginPath();
+      ctx.arc(-22, 6, 18, 0, Math.PI * 2);
+      ctx.arc(0, -8, 26, 0, Math.PI * 2);
+      ctx.arc(24, 5, 19, 0, Math.PI * 2);
+      ctx.arc(4, 12, 20, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 3.5;
+      ctx.stroke();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawGrassTuft(g) {
+      ctx.save();
+      ctx.translate(g.x, g.y);
+      ctx.beginPath();
+      ctx.moveTo(-16, 6); ctx.lineTo(-10, -10); ctx.lineTo(-4, 2);
+      ctx.lineTo(0, -14); ctx.lineTo(5, 2); ctx.lineTo(12, -10); ctx.lineTo(16, 6);
+      ctx.closePath();
+      ctx.strokeStyle = "#f4ecc4"; ctx.lineWidth = 6; ctx.stroke();
+      ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "#40c057"; ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPuddle(p) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.beginPath(); ctx.ellipse(0, 0, 26, 11, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#4dabf7"; ctx.fill();
+      ctx.strokeStyle = "#1971c2"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSignpost(t) {
+      const { x, y } = SIGNPOST;
+      const hasClaimable = tasks.some(tk => tk.prog >= tk.goal && !tk.claimed);
+      ctx.save();
+      ctx.translate(x, y);
+      // Direk & Tabela
+      ctx.fillStyle = "#8c5828"; ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 2.5;
+      ctx.fillRect(-5, 6, 10, 26); ctx.strokeRect(-5, 6, 10, 26);
+      ctx.beginPath(); ctx.roundRect(-24, -18, 48, 28, 6);
+      ctx.strokeStyle = "#f4ecc4"; ctx.lineWidth = 7; ctx.stroke();
+      ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.fillStyle = "#c98a4b"; ctx.fill();
+      ctx.font = "16px serif"; ctx.textAlign = "center"; ctx.fillText("🐑", 0, 1);
+
+      // Kırmızı Ünlem (!)
+      const bounce = Math.abs(Math.sin(t * 5)) * (hasClaimable ? 8 : 3);
+      ctx.font = "900 32px sans-serif";
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+      ctx.strokeText("!", 0, -24 - bounce);
+      ctx.fillStyle = "#e03131";
+      ctx.fillText("!", 0, -24 - bounce);
+      ctx.restore();
+    }
+
+    function drawSheep(s, t) {
+      const isHeld = dragged && dragged.obj === s;
+      const scale = s.isLamb ? 0.65 : 1;
+      const walkBob = isHeld ? 0 : Math.abs(Math.sin(t * 8 + s.x)) * 2.5;
+
+      ctx.save();
+      ctx.translate(s.x, s.y + s.jumpY - walkBob);
+
+      // Gölge
+      if (!isHeld) {
+        ctx.fillStyle = "rgba(0,0,0,0.22)";
+        ctx.beginPath(); ctx.ellipse(0, 18 * scale - s.jumpY + walkBob, 30 * scale, 9 * scale, 0, 0, Math.PI * 2); ctx.fill();
+      }
+
+      ctx.scale(s.dir * scale, scale);
+
+      // Bacaklar (havadaysa sallanır)
+      const legSwing = isHeld ? Math.sin(t * 25) * 6 : 0;
+      ctx.fillStyle = "#343a40"; ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2;
+      [[-18, 8], [-6, 10], [8, 10], [18, 8]].forEach(([lx, ly], idx) => {
+        ctx.fillRect(lx + (idx % 2 ? legSwing : -legSwing), ly, 6, 13);
+        ctx.strokeRect(lx + (idx % 2 ? legSwing : -legSwing), ly, 6, 13);
+      });
+
+      // Kuyruk
+      ctx.beginPath(); ctx.arc(-32, -4, 7, 0, Math.PI * 2);
+      ctx.fillStyle = "#f1f3f5"; ctx.fill(); ctx.stroke();
+
+      // Pofuduk Yün Gövde
+      ctx.beginPath();
+      ctx.arc(-16, -6, 17, 0, Math.PI * 2);
+      ctx.arc(0, -14, 20, 0, Math.PI * 2);
+      ctx.arc(16, -6, 17, 0, Math.PI * 2);
+      ctx.arc(-8, 4, 15, 0, Math.PI * 2);
+      ctx.arc(10, 4, 15, 0, Math.PI * 2);
+      ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 4; ctx.stroke();
+      ctx.fillStyle = "#f8f9fa"; ctx.fill();
+
+      // Siyah/Koyu Gri Kafa
+      ctx.beginPath(); ctx.ellipse(26, -6, 15, 13, 0.2, 0, Math.PI * 2);
+      ctx.fillStyle = "#495057"; ctx.fill();
+      ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2.5; ctx.stroke();
+
+      // Kulak
+      ctx.beginPath(); ctx.ellipse(14, -12, 9, 4, -0.4, 0, Math.PI * 2);
+      ctx.fillStyle = "#343a40"; ctx.fill(); ctx.stroke();
+
+      // Gözler
+      if (s.blink > 3.85) {
+        ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(22, -11); ctx.lineTo(29, -11); ctx.stroke();
+      } else {
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.arc(24, -11, 4.5, 0, Math.PI * 2); ctx.arc(32, -10, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#1a1a1a";
+        ctx.beginPath(); ctx.arc(25, -11, 1.8, 0, Math.PI * 2); ctx.arc(33, -10, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+
+      ctx.restore();
+
+      // İhtiyaç Baloncuğu
+      if (s.hunger < 45 || s.thirst < 45) {
+        ctx.save();
+        ctx.fillStyle = "#fff"; ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(s.x, s.y - 46 * scale, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.font = "14px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(s.hunger < s.thirst ? "🌿" : "💧", s.x, s.y - 45 * scale);
+        ctx.restore();
+      }
+    }
+
+    /* ANA ÇİZİM DÖNGÜSÜ */
+    let last = performance.now();
+    function loop(nowMs) {
+      const dt = Math.min(0.05, (nowMs - last) / 1000);
+      last = nowMs;
+      const t = nowMs / 1000;
+
+      update(dt);
+      drawBackground();
+
+      puddles.forEach(drawPuddle);
+      grassTufts.forEach(drawGrassTuft);
+
+      // Oyuncaklar
+      toys.forEach(toy => {
+        if (toy.type === "ball") {
+          ctx.font = "26px serif"; ctx.textAlign = "center"; ctx.fillText("⚽", toy.x, toy.y);
+        } else {
+          ctx.save(); ctx.translate(toy.x, toy.y);
+          ctx.fillStyle = "#343a40"; ctx.fillRect(-28, 2, 5, 12); ctx.fillRect(23, 2, 5, 12);
+          ctx.beginPath(); ctx.ellipse(0, 0, 32, 11, 0, 0, Math.PI * 2);
+          ctx.fillStyle = "#e84383"; ctx.fill(); ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 2.5; ctx.stroke();
+          ctx.restore();
+        }
+      });
+
+      // Derinliğe göre sıralı koyunlar
+      [...sheepList].sort((a, b) => a.y - b.y).forEach(s => drawSheep(s, t));
+
+      drawSignpost(t);
+
+      // Yağmur damlaları
+      ctx.strokeStyle = "#339af0"; ctx.lineWidth = 2.2;
+      raindrops.forEach(r => {
+        ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y + 10); ctx.stroke();
+      });
+
+      // Bulutlar
+      clouds.forEach(drawCloud);
+
+      // Uçan Yıldız / Kalp Parçacıkları
+      particles.forEach(p => {
+        ctx.save(); ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+        ctx.font = "900 17px sans-serif"; ctx.textAlign = "center";
+        ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 3.5; ctx.strokeText(p.text, p.x, p.y);
+        ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y);
+        ctx.restore();
+      });
+
+      requestAnimationFrame(loop);
+    }
+
+    document.getElementById("starCountEl").textContent = stars;
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
